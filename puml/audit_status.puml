@@ -1,0 +1,10 @@
+@startuml
+admin->refundServ : 申请special refund
+note over refundServ: 审核状态为待审核
+
+CEG->refundServ : 审核通过
+note over refundServ: 审核状态为审核通过
+
+CEG->refundServ : 审核不通过
+note over refundServ: 审核状态为审核不通过
+@enduml

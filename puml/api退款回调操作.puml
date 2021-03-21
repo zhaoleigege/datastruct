@@ -1,0 +1,34 @@
+@startuml
+start
+    :api退款回调;
+    :refundId、退款状态等信息;
+
+    if (校验传入的参数是否小于等于0或者字符串为空) then (true)
+    else (false)
+        stop
+    endif
+
+    :通过refundId获取该退款记录的信息;
+    if (判断回调是否合法
+    1. 不是api退款
+    2. 已经回调了告诉结果) then (true)
+    else (false)
+        stop
+    endif
+
+    split
+    :退款失败;
+    :更新表状态;
+    :发送邮件提醒;
+    split again
+    :退款成功;
+    :更新表状态;
+    :退积分;
+    :退礼品卡;
+    :退现金;
+    :对于完成的交易发送交易完成消息;
+    end split
+
+
+stop
+@enduml

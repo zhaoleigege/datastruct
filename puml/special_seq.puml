@@ -1,0 +1,49 @@
+@startuml
+participant Admin
+
+Admin -> refunfServ : 申请退款
+activate Admin
+activate refunfServ
+
+refunfServ -> refunfServ : 计算退款金额，判断钱是走自动退款还是手动退款
+activate refunfServ
+deactivate refunfServ
+
+refunfServ -> refunfServ : 生成退款单
+
+refunfServ -> Admin : 成功处理退款请求
+deactivate refunfServ
+deactivate Admin
+
+CEG -> refunfServ : 审批通过special refund
+activate CEG
+activate refunfServ
+
+refunfServ -> payServ : 自动退款的金额走网关退款
+activate payServ
+
+payServ -> refunfServ : 返回处理中/处理失败/处理成功
+deactivate payServ
+
+CEG <- refunfServ : 审批结束
+deactivate refunfServ
+deactivate CEG
+
+payServ -> refunfServ : 支付网关回调请求
+activate payServ
+activate refunfServ
+
+refunfServ -> payServ : 处理完毕
+deactivate refunfServ
+deactivate payServ
+
+
+
+财务 -> refunfServ : 进行手动退款
+activate 财务
+activate refunfServ
+
+财务 <- refunfServ : 手动退款完成
+deactivate refunfServ
+deactivate 财务
+@enduml

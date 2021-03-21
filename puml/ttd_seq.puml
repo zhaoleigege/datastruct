@@ -1,0 +1,36 @@
+@startuml
+participant 用户
+
+用户 -> refunfServ : 申请退款
+activate refunfServ
+
+refunfServ -> refunfServ : ticket状态校验，\n 参数校验，sku校验，\n 是否理赔和是否退过款
+activate refunfServ
+deactivate refunfServ
+
+refunfServ -> refunfServ : 计算退款金额并生成退款单
+activate refunfServ
+deactivate refunfServ
+
+refunfServ -> otherserv : 退还其他资源，如积分、礼品卡
+activate otherserv
+
+otherserv ->  refunfServ
+deactivate otherserv
+
+refunfServ -> payServ : 走网关退款
+activate payServ
+
+payServ -> refunfServ : 返回处理中/处理失败/处理成功
+deactivate payServ
+
+refunfServ -> 用户 : 成功处理退款请求
+deactivate refunfServ
+
+payServ -> refunfServ : 支付网关回调请求
+activate refunfServ
+
+refunfServ -> payServ : 处理完毕
+deactivate refunfServ
+
+@enduml

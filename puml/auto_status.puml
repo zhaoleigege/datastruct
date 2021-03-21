@@ -1,0 +1,34 @@
+@startuml
+scale 500 width
+
+[*] -> Apply
+Apply : 自动退款金额大于0
+
+Apply --> Pending : 等待网关回调
+Pending : 支付异步请求执行退款
+Pending --> Complete : 网关回调成功
+
+Apply --> Complete : success
+Complete : 自动退款成功
+Complete --> [*]
+
+Apply --> RefundRetry : Fail
+state RefundRetry {
+  state "自动退款重试" as retry
+  retry : 执行自动退款定时任务
+
+  [*] --> retry
+  retry --> RetryComplete
+  RetryComplete : 自动退款重试成功
+
+  retry --> RetryFail
+  RetryFail : 超过自动退款重试的次数
+
+  RetryFail --> [*]
+  RetryComplete --> [*]
+}
+
+RefundRetry --> RefundRetry : 重试失败
+RefundRetry --> [*] : 成功
+RefundRetry --> [*] : 重试超过最大限制
+@enduml

@@ -1,0 +1,143 @@
+@startuml
+start
+    :用户发起退款请求;
+    :传入skuId、count、ticketGuid、reasonCode等信息;
+
+    if (校验传入的参数是否小于等于0或者字符串为空) then (true)
+    else (false)
+        stop
+    endif
+
+    if (通过ticketId判断是否重复请求) then (true)
+    else (false)
+        stop
+    endif
+
+    :通过reasonCode获取对应的desc;
+    :通过ticketId获取ticket的信息
+     1. ticket对应的order的信息
+     2. ticket对应的unit的信息
+     3. 金额信息
+     4. 凭证信息
+     5. 保险信息
+     6. 出库类型
+     7. activityTemplateId
+     8. order下所有已经退过款的信息;
+    :设置凭证是否兑换的信息;
+    :过滤掉审核拒绝的special refund;
+
+    if (
+        1. 判断执行退款操作的ticket是否是该用户的订单
+        2. 如果order存在申请或者已审批通过的special refund，不能再申请普通退款
+        3. ticket的状态不能是已取消或者已退款
+        4. dragonPal不能退款
+        5. 根据取消原则判断该ticket能否进行退款
+        6. 凭证已经使用不能进行退款
+    ) then (true)
+    else (false)
+        stop
+    endif
+
+    :通过传入参数判断此次退款的skuId和count，计算出是partial refund还是full refund;
+
+    if (
+    如果是部分退款，需要判断sku剩余的count是否符合商品规定的最小购买数量
+    )then (true)
+    else (false)
+        stop
+    endif
+
+    :通过skuId筛选出unit的信息。
+    1. 已经理赔或者申请理赔的不能进行退款
+    2. 已经兑换的不能进行退款;
+
+    if (
+    判断筛选出unit后总的数量是否符合用户想要退款的总数量
+    )then (true)
+    else (false)
+        stop
+    endif
+
+    :通过出库类型和activity_template_id判断走特定的业务线退款流程;
+    split
+        :酒店;
+        :调用酒店api接口获取能否进行退款，
+        以及退款的金额和手续，
+        酒店只能进行full refund，
+        退款手续费需要拆分到每一个unit上面;
+    split again
+        :租车;
+        :调用租车api接口获取能否进行退款，
+        以及退款的金额和手续，
+        租车一个order只有一个unit;
+    split again
+        :中铁;
+        :请求直接转到中铁业务线;
+        stop
+    split again
+        :transfer;
+        :只能是full refund;
+        :用户端调用接口如果返回false就不能执行退款了
+         admin端接口返回false就走ttd的退款流程;
+    split again
+        :fnb;
+        :调用接口获取能否退款，如果返回数不是fnb预定活动就走ttd退款流程;
+    split again
+        :铁路活动;
+        :调用接口，返回能否退款，能够返回不能退款就走ttd退款流程;
+        :返回true的话，只是后面退款时退款请求会转发到铁路处;
+    split again
+        :supplier api;
+        :C端只支持full refund;
+        :Admin端可以执行部分退款;
+        :调用退款接口返回能否退款，admin退款时如果返回false走ttd退款;
+        :可能存在返回手续费的情况，这部分金额需要拆分到每个unit;
+    split again
+        :欧铁活动;
+        :只能是full refund;
+        :调用欧铁的接口获取退款金额，如果返回不能退就真的不能退;
+        :欧铁返回总的退款金额，需要额外算出每个unit的手续费;
+    split again
+        :ttd产品;
+        :按照下单的金额进行退款;
+    end split
+
+    :按照退款金额或者手续费计算出每个unit可退的金额和手续费，
+    算出现金、礼品卡、积分和优惠券需要各自退回多少钱;
+
+
+    if (
+    如果用户支付方式为CyberSource&Paypal并且操作180天，只能由admin进行退款
+    )then (true)
+    else (false)
+        stop
+    endif
+
+    :计算ticket的新状态,如果是full refund需要改成已退款。
+     如果是在void或者admin执行了cancel操作，需要改为cancel;
+
+    :计算操作类型、日志记录类型、退款状态;
+    :计算自动退款和手动退款的状态;
+    :生成refundApplicationNo等信息;
+
+    :加虚拟库存的操作;
+
+    :生成退款交易信息;
+    :插入数据库refund信息、unit退款信息、更新凭证的信息、更新order和ticket的退款金额信息;
+    :插入退款操作记录和退款日志记录;
+    :发送退款申请等消息;
+
+
+    if (
+     是否是API退款
+     )then (true)
+        :转发请求到特定的业务线，更新api退款状态;
+         stop
+     endif
+
+     :退积分;
+     :退礼品卡;
+     :退现金;
+     :对于完成的交易发送交易完成消息;
+stop
+@enduml

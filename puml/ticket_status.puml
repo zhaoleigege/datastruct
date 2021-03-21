@@ -1,0 +1,21 @@
+@startuml
+[*] --> 处理中
+
+处理中 --> 已完成
+处理中 : 生成订单后的默认状态
+
+已完成 --> 已退款
+已完成 : ticket confirm的后的状态
+已退款 : 发起full refund以后
+
+处理中 --> void
+void : 风控拦截
+
+处理中 --> cancel
+cancel : admin取消
+
+void --> [*]
+cancel --> [*]
+已完成 --> [*]
+已退款 --> [*]
+@enduml

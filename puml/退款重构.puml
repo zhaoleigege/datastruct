@@ -1,0 +1,98 @@
+@startuml
+actor User
+
+
+box "铁路BFF" #LightBlue
+ participant reappserv
+ participant recoreserv
+
+end box
+
+box "铁路后台" #LightYellow
+    skinparam ParticipantPadding 20
+    skinparam BoxPadding 10
+    participant p2pbackend
+end box
+
+box "KLOOK平台" #HoneyDew
+ participant 订单
+end box
+
+box "供应商平台" #Pink
+ participant SDK
+end box
+
+== 订单退款（旧） ==
+User -> 订单: 取消KLOOK订单申请
+activate 订单
+订单 ->  p2pbackend: 查询订单可退金额
+activate p2pbackend
+p2pbackend -> SDK: 向供应商查询可退金额
+activate SDK
+return 供应商平台计算的可退金额
+p2pbackend -> p2pbackend: 退款价格策略计算实际可退金额
+return 订单实际可退金额信息
+订单 -> 订单: 生成退款单 & 计算coupon/积分等
+return KLOOK订单实际可退金额
+
+
+订单 ->  p2pbackend: 确认取消订单请求
+activate p2pbackend
+return 接收确认取消订单请求
+p2pbackend -> SDK: 向供应商确认取消订单
+activate SDK
+return 供应商平台订单取消结果
+p2pbackend -> 订单: 回调取消订单结果
+activate 订单
+return 接收到请求
+订单 -> 订单: 更新订单/DB操作
+
+== 订单退款（新） ==
+User -> reappserv: 查看哪些unit可以进行退款
+activate reappserv
+reappserv -> 订单: 获取每个unit的信息，能否退款
+activate 订单
+return unit的信息
+reappserv -> reappserv: 业务线自己能否退款的逻辑
+return 能够退款的unit信息
+
+User -> reappserv: 发起退款申请
+activate reappserv
+reappserv -> 订单: 获取退款申请原因
+activate 订单
+return 退款申请原因
+reappserv -> reappserv: 定制原因（可选）
+return 退款原因选项
+
+User -> reappserv: 预退款
+activate reappserv
+reappserv -> p2pbackend: 退款金额计算
+activate p2pbackend
+p2pbackend -> SDK: 向供应商确认可退款金额
+activate SDK
+return 此订单可退款金额
+p2pbackend -> p2pbackend: 退款价格策略计算实际可退金额
+p2pbackend -> 订单: 请求计算平台可退金额（除去优惠券/积分）
+activate 订单
+return 平台的可退金额
+return 此订单的可退金额
+return 可退款金额
+
+User -> reappserv: 提交退款申请
+activate reappserv
+reappserv -> p2pbackend: 退款申请提交
+activate p2pbackend
+p2pbackend -> 订单: 生成退款单
+activate 订单
+return 退款单生成结果
+return 退款申请提交结果
+return 退款申请提交结果
+p2pbackend -> SDK: 向供应商确认取消订单
+activate SDK
+return 订单取消结果
+p2pbackend -> 订单: 回调退款结果和实际金额
+activate 订单
+订单 -> 订单: DB操作/订单信息更新
+return 最终退款结果
+
+@enduml

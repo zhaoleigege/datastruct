@@ -1,0 +1,14 @@
+@startuml
+用户->refundServ : 发起退款
+note over refundServ: api退款状态为已申请
+
+refundServ->垂直业务线 : 发起api退款
+refundServ<-垂直业务线 : 接收成功
+note over refundServ: api退款状态为处理中
+
+垂直业务线->refundServ : 返回成功
+note over refundServ: api退款状态为api处理成功
+
+垂直业务线->refundServ : 返回失败
+note over refundServ: api退款状态为api处理失败
+@enduml

@@ -1,0 +1,284 @@
+@startuml
+actor user
+skinparam sequenceMessageAlign center
+
+box "垂直业务线" #LightBlue
+    participant vertical
+end box
+
+box "自定义业务线" #LemonChiffon
+    participant custom_vertical
+end box
+
+box "订单" #Lavender
+    participant appserv
+    participant adminserv
+    participant refundserv
+    participant insurance
+    participant voucher
+end box
+
+box "供应商" #Pink
+    participant supplier
+end box
+
+box "支付" #Violet
+    participant payinternalserv
+end box
+
+box "礼品卡" #Tomato
+    participant giftcard
+end box
+
+box "积分" #Plum
+    participant credit
+end box
+
+box "toc" #MistyRose
+    participant coupon
+end box
+
+== 垂直业务线自定义订单详情页 ==
+alt 退款原因查看
+user -> vertical: 获取退款原因
+activate vertical
+vertical -> refundserv: 获取平台默认的退款原因
+activate refundserv
+return
+vertical -> vertical: 设置自定义退款原因
+return 返回退款原因
+end
+
+
+alt 获取退款金额
+user -> vertical: 获取退款金额
+activate vertical
+vertical -> supplier: 调用供应商接口获取可退金额
+activate supplier
+return
+vertical -> refundserv: 传递可退金额到订单平台
+activate refundserv
+refundserv -> insurance: 获取是否理赔
+activate insurance
+return
+refundserv -> voucher: 获取凭证信息，是否兑换
+activate voucher
+return
+refundserv -> refundserv: 判断能否退款\n通过下单信息计算出退款金额
+return 计算出现金、礼品卡、积分和优惠券各自可退金额
+return 返回退款金额
+end
+
+alt 申请退款
+
+alt 申请操作
+user -> vertical: 申请退款
+activate vertical
+vertical -> supplier: 调用供应商接口获取可退金额
+activate supplier
+return 返回能否退款以及退款金额
+vertical -> vertical: 业务线逻辑操作
+vertical -> refundserv: 生成退款记录
+activate refundserv
+refundserv -> refundserv: 判断能否退款\n生成一个申请中的退款记录
+return 返回refundId等信息
+vertical -> vertical: 记录退款信息等操作
+return 返回退款申请成功
+end
+
+
+alt 真正执行退款
+vertical -> supplier: 异步去供应商申请退款
+activate supplier
+supplier -> supplier: 执行退款操作
+return
+vertical -> vertical: 记录退款状态\n执行数据更新等操作\n计算退款金额
+vertical -> refundserv: 发送退款状态(通过消息的方式)
+activate refundserv
+return
+end
+
+end
+
+== admin执行退款操作 ==
+alt 退款原因查看
+user -> adminserv: 获取退款原因
+activate adminserv
+adminserv -> refundserv: 获取平台默认的退款原因
+activate refundserv
+return
+return 返回退款原因
+end
+
+alt 获取退款金额
+user -> adminserv: 获取退款金额
+activate adminserv
+adminserv -> vertical: 转发到业务线(自定义的业务线)，附上req_source
+activate vertical
+vertical -> supplier: 调用供应商接口获取可退金额
+activate supplier
+return
+return 返回能否退款和退款金额
+adminserv -> refundserv: 传递可退金额到订单平台
+activate refundserv
+refundserv -> refundserv: 判断能否退款\n通过下单信息计算出退款金额
+return 计算出现金、礼品卡、积分和优惠券各自可退金额
+return 返回退款金额
+end
+
+alt 申请退款
+
+alt 获取操作
+user -> adminserv: 申请退款
+activate adminserv
+adminserv -> vertical: 发到业务线(自定义的业务线)，附上req_source
+activate vertical
+vertical -> supplier: 获取退款金额
+activate supplier
+return 返回能否退款以及退款金额
+
+vertical -> refundserv: 生成退款记录
+activate refundserv
+refundserv -> refundserv: 判断能否退款\n生成一个申请中的退款记录
+return 返回refundId等信息
+
+vertical -> vertical: 自定义逻辑
+return 返回用户成功接收申请
+return 返回退款申请成功
+end
+
+
+alt 真正执行退款
+vertical -> supplier: 异步去供应商申请退款
+activate supplier
+supplier -> supplier: 执行退款操作
+return
+vertical -> vertical: 记录退款状态\n执行数据更新等操作\n计算退款金额
+vertical -> refundserv: 发送退款状态(通过消息的方式)
+activate refundserv
+return
+end
+
+end
+
+== klook订单详情页(包含admin的操作) ==
+alt 退款原因查看
+user -> appserv: 获取退款原因
+activate appserv
+appserv -> refundserv: 获取平台默认的退款原因
+activate refundserv
+return
+return 返回退款原因
+end
+
+alt 获取退款金额
+user -> appserv: 获取退款金额
+activate appserv
+appserv -> custom_vertical: 转发到自定义的业务线实现服务
+activate custom_vertical
+custom_vertical -> vertical: 通过stock_out_type或者\nactivity_template_id\n调用不同业务线的接口
+activate vertical
+return
+return 返回能否退款和退款金额
+appserv -> refundserv: 传递可退金额到订单平台
+activate refundserv
+refundserv -> refundserv: 判断能否退款\n通过下单信息计算出退款金额
+return 计算出现金、礼品卡、积分和优惠券各自可退金额
+return 返回退款金额
+end
+
+alt 申请退款
+
+alt 获取操作
+user -> appserv: 申请退款
+activate appserv
+appserv -> custom_vertical: 转发到自定义的业务线实现服务，附上req_source
+activate custom_vertical
+custom_vertical -> vertical: 通过stock_out_type或者\nactivity_template_id\n调用不同业务线的接口
+activate vertical
+return 获取能否退款和退款金额
+return 返回能否退款以及退款金额
+
+appserv -> refundserv: 生成退款记录
+activate refundserv
+refundserv -> refundserv: 判断能否退款\n生成一个申请中的退款记录
+return 返回refundId等信息
+
+appserv -> custom_vertical: 发送退款申请
+note right: 这里可能存在服务调用失败，但是没有任何记录的情况\n这里可以通过监控平台或者邮件的方式进行监控
+activate custom_vertical
+custom_vertical -> vertical: 通过stock_out_type或者\nactivity_template_id\n调用不同业务线的接口
+activate vertical
+return 返回申请是否接收成功
+return 返回申请是否接收成功
+return 返回用户成功接收申请
+end
+
+
+alt 真正执行退款
+vertical -> supplier: 异步去供应商申请退款
+activate supplier
+supplier -> supplier: 执行退款操作
+return
+
+vertical -> custom_vertical: 回调成功与否的接口 发送退款状态(通过消息的方式)
+note right: 这里可能存在服务调用失败，但是没有任何记录的情况\n这里可以通过监控平台或者邮件的方式进行监控
+activate custom_vertical
+custom_vertical -> custom_vertical: 通过返回状态计算出退款金额
+custom_vertical -> refundserv: 发送退款状态(通过消息的方式)
+activate refundserv
+return
+return
+end
+
+end
+
+== special refund的操作 ==
+alt 申请退款
+user -> adminserv: 申请退款，传入退款金额、iwp、merchant和其他信息
+activate adminserv
+adminserv -> refundserv: 计算退款金额和存储传入的其他信息
+activate refundserv
+return 返回申请结果
+return 返回用户成功接收申请
+end
+
+alt 审批通过
+user -> refundserv: 审批通过
+activate refundserv
+refundserv -> refundserv: 执行退还现金、礼品卡、积分和优惠券的操作
+return 返回操作成功
+end
+
+== api退款结果操作 ==
+alt 失败
+vertical -> refundserv: custom_vertical也可以执行该操作
+activate refundserv
+refundserv -> refundserv: 修改数据库的字段和发送相应的消息
+return
+end
+
+alt 成功
+vertical -> refundserv: custom_vertical也可以执行该操作\n 金额信息
+activate refundserv
+refundserv -> refundserv: 修改数据库的字段，这里变为退款中
+
+refundserv -> payinternalserv: 网关自动退款
+activate payinternalserv
+return
+
+refundserv -> giftcard: 退礼品卡
+activate giftcard
+return
+
+refundserv -> credit: 退积分
+activate credit
+return
+
+refundserv -> coupon: 退优惠券
+activate coupon
+return
+
+return 返回退款成功
+end
+@enduml

@@ -1,0 +1,63 @@
+@startuml
+participant 用户
+
+用户 -> refunfServ : 申请退款
+activate 用户
+activate refunfServ
+
+refunfServ -> refunfServ : ticket状态校验，\n 参数校验，sku校验，\n 是否理赔和是否退过款
+activate refunfServ
+deactivate refunfServ
+
+refunfServ -> hotelApi : 获取退款金额以及能能否退款
+activate hotelApi
+
+refunfServ <- hotelApi : 返回退款斤
+deactivate hotelApi
+
+refunfServ -> refunfServ : 计算退款金额并生成退款单
+activate refunfServ
+deactivate refunfServ
+
+refunfServ -> hotelApi : 退款请求转发到hotelApi
+activate hotelApi
+
+refunfServ <- hotelApi : 成功接收请求
+deactivate hotelApi
+
+refunfServ -> 用户 : 成功处理退款请求
+deactivate refunfServ
+deactivate 用户
+
+
+hotelApi -> refunfServ : 返回api处理结果
+activate hotelApi
+activate refunfServ
+
+refunfServ -> otherserv : 退还其他资源，如积分、礼品卡
+activate otherserv
+
+otherserv ->  refunfServ : 成功退还
+deactivate otherserv
+
+refunfServ -> payServ : 走网关退款
+activate payServ
+
+payServ -> refunfServ : 返回处理中/处理失败/处理成功
+deactivate payServ
+
+hotelApi <- refunfServ : api回调处理完成
+deactivate refunfServ
+deactivate hotelApi
+
+
+
+payServ -> refunfServ : 支付网关回调请求
+activate payServ
+activate refunfServ
+
+refunfServ -> payServ : 处理完毕
+deactivate refunfServ
+deactivate payServ
+
+@enduml
